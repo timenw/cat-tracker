@@ -371,16 +371,10 @@ fun ActionButton(
     onNeedAd: (CatAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isOnCooldown = remember(cat.lastInteractionTime, cat.lastFeedTime, cat.lastPlayTime, cat.lastCleanTime) {
-        repository.isActionOnCooldown(action, cat)
-    }
+    val isOnCooldown = repository.isActionOnCooldown(action, cat)
     val cooldownRemaining = if (isOnCooldown) repository.getCooldownRemaining(action, cat) else 0L
-    val freeRemaining = remember(cat.dailyActionCounts, cat.dailyActionDate) {
-        repository.getFreeUsesRemaining(cat, action)
-    }
-    val needsAd = remember(cat.dailyActionCounts, cat.dailyActionDate) {
-        repository.needsAdForAction(cat, action)
-    }
+    val freeRemaining = repository.getFreeUsesRemaining(cat, action)
+    val needsAd = repository.needsAdForAction(cat, action)
 
     FilledTonalButton(
         onClick = {
@@ -393,10 +387,8 @@ fun ActionButton(
             }
         },
         modifier = modifier.height(64.dp),
-        enabled = !isOnCooldown,
         colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = if (needsAd) CatOrange.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primaryContainer,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = if (needsAd) CatOrange.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primaryContainer
         ),
         shape = MaterialTheme.shapes.medium
     ) {

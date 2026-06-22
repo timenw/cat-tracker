@@ -102,6 +102,7 @@ class CatRepository(private val context: Context) {
     }
 
     fun isActionOnCooldown(action: CatAction, cat: Cat): Boolean {
+        if (action.cooldownMs == 0L) return false
         val lastTime = when (action) {
             CatAction.PET_HEAD, CatAction.SCRATCH_CHIN, CatAction.RUB_BELLY -> cat.lastInteractionTime
             CatAction.FEED_FOOD, CatAction.FEED_SNACK, CatAction.FEED_CAN -> cat.lastFeedTime
@@ -109,10 +110,12 @@ class CatRepository(private val context: Context) {
             CatAction.CLEAN_BATH, CatAction.CLEAN_BRUSH -> cat.lastCleanTime
             CatAction.SLEEP -> 0L
         }
+        if (lastTime == 0L) return false
         return (System.currentTimeMillis() - lastTime) < action.cooldownMs
     }
 
     fun getCooldownRemaining(action: CatAction, cat: Cat): Long {
+        if (action.cooldownMs == 0L) return 0L
         val lastTime = when (action) {
             CatAction.PET_HEAD, CatAction.SCRATCH_CHIN, CatAction.RUB_BELLY -> cat.lastInteractionTime
             CatAction.FEED_FOOD, CatAction.FEED_SNACK, CatAction.FEED_CAN -> cat.lastFeedTime
@@ -120,6 +123,7 @@ class CatRepository(private val context: Context) {
             CatAction.CLEAN_BATH, CatAction.CLEAN_BRUSH -> cat.lastCleanTime
             CatAction.SLEEP -> 0L
         }
+        if (lastTime == 0L) return 0L
         return (action.cooldownMs - (System.currentTimeMillis() - lastTime)).coerceAtLeast(0L)
     }
 
@@ -223,6 +227,7 @@ class CatRepository(private val context: Context) {
     }
 
     fun applyNaturalDecay(cat: Cat): Cat {
+        if (cat.lastInteractionTime == 0L) return cat
         val hours = ((System.currentTimeMillis() - cat.lastInteractionTime) / (1000 * 60 * 60)).coerceAtMost(24).toInt()
         val newCat = cat.copy(
             hunger = (cat.hunger - hours * 2).coerceIn(0, 100),
