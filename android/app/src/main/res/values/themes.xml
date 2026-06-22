@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CatTracker" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#FF1A0F0A</item>
+        <item name="android:navigationBarColor">#FF1A0F0A</item>
+    </style>
+</resources>
