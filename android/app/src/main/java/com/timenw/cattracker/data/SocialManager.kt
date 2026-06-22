@@ -81,9 +81,9 @@ class SocialManager(private val context: Context) {
             isAntiAlias = true
         }
         for (i in 0..20) {
-            val x = Random(i).nextFloat() * width
-            val y = Random(i + 100).nextFloat() * height
-            canvas.drawCircle(x, y, Random(i + 200).nextFloat() * 30 + 10, dotPaint)
+            val x = Random(i.toLong()).nextFloat() * width
+            val y = Random(i.toLong() + 100).nextFloat() * height
+            canvas.drawCircle(x, y, Random(i.toLong() + 200).nextFloat() * 30 + 10, dotPaint)
         }
 
         // 顶部标题
@@ -255,9 +255,8 @@ class SocialManager(private val context: Context) {
         entries.add(myEntry)
 
         // 排序
-        val sorted = entries.sortedByDescending { it.score }
-        sorted.forEachIndexed { index, entry ->
-            sorted[index] = entry.copy(rank = index + 1)
+        val sorted = entries.sortedByDescending { it.score }.mapIndexed { index, entry ->
+            entry.copy(rank = index + 1)
         }
 
         return sorted.take(10)

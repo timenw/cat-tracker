@@ -80,11 +80,11 @@ fun SettingsTab(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         SwitchRow("撸猫提醒", if (settings.reminderEnabled) "已开启 — 定期提醒你撸猫" else "已关闭", settings.reminderEnabled) { onSettingsChanged(settings.copy(reminderEnabled = it)) }
-                        Spacer(12.dp); HorizontalDivider(); Spacer(12.dp)
+                        Spacer(modifier = Modifier.height(12.dp)); HorizontalDivider(); Spacer(modifier = Modifier.height(12.dp))
                         SwitchRow("喂食提醒", if (settings.feedReminderEnabled) "已开启" else "已关闭", settings.feedReminderEnabled) { onSettingsChanged(settings.copy(feedReminderEnabled = it)) }
-                        Spacer(12.dp); HorizontalDivider(); Spacer(12.dp)
+                        Spacer(modifier = Modifier.height(12.dp)); HorizontalDivider(); Spacer(modifier = Modifier.height(12.dp))
                         SwitchRow("玩耍提醒", if (settings.playReminderEnabled) "已开启" else "已关闭", settings.playReminderEnabled) { onSettingsChanged(settings.copy(playReminderEnabled = it)) }
-                        Spacer(12.dp); HorizontalDivider(); Spacer(12.dp)
+                        Spacer(modifier = Modifier.height(12.dp)); HorizontalDivider(); Spacer(modifier = Modifier.height(12.dp))
                         SwitchRow("清洁提醒", if (settings.cleanReminderEnabled) "已开启" else "已关闭", settings.cleanReminderEnabled) { onSettingsChanged(settings.copy(cleanReminderEnabled = it)) }
                     }
                 }
@@ -123,7 +123,7 @@ fun SettingsTab(
                                 ) { Text("🔊 成就音效") }
                             }
                         }
-                        Spacer(12.dp); HorizontalDivider(); Spacer(12.dp)
+                        Spacer(modifier = Modifier.height(12.dp)); HorizontalDivider(); Spacer(modifier = Modifier.height(12.dp))
                         SwitchRow("震动", if (settings.vibrationEnabled) "已开启" else "已关闭", settings.vibrationEnabled) {
                             onSettingsChanged(settings.copy(vibrationEnabled = it))
                             soundManager.setVibrationEnabled(it)
@@ -211,4 +211,3 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
     }
 }
 
-private fun Spacer(dp: Int) = Spacer(modifier = Modifier.height(dp.dp))
