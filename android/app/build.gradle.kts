@@ -11,8 +11,8 @@ android {
         applicationId = "com.timenw.cattracker"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -48,6 +48,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.google.code.gson:gson:2.10.1")
+    // AdMob
+    implementation("com.google.android.gms:play-services-ads-lite:22.6.0")
+    // Billing
+    implementation("com.android.billingclient:billing-ktx:6.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

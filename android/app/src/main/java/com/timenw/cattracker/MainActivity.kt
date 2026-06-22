@@ -22,6 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.timenw.cattracker.data.*
 import com.timenw.cattracker.data.model.*
 import com.timenw.cattracker.data.repository.CatRepository
 import com.timenw.cattracker.notification.NotificationHelper
@@ -31,29 +32,50 @@ import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     private lateinit var repository: CatRepository
+    private lateinit var soundManager: SoundManager
+    private lateinit var adManager: AdManager
+    private lateinit var billingManager: BillingManager
+    private lateinit var socialManager: SocialManager
+
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         repository = CatRepository(applicationContext)
+        soundManager = SoundManager(applicationContext)
+        adManager = AdManager(applicationContext)
+        socialManager = SocialManager(applicationContext)
+        billingManager = BillingManager(
+            context = applicationContext,
+            onPurchaseSuccess = { sku ->
+                // 购买成功，更新广告状态
+                when (sku) {
+                    BillingManager.SKU_REMOVE_ADS -> adManager.setAdsRemoved(true)
+                }
+            },
+            onPurchaseError = { /* 显示错误 */ }
+        )
+
         NotificationHelper.createNotificationChannel(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
         setContent {
             CatTrackerTheme {
-                MainScreen(repository)
+                MainScreen(repository, soundManager, adManager, billingManager, socialManager)
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        soundManager.release()
+        billingManager.release()
     }
 }
 
@@ -63,36 +85,27 @@ sealed class Screen(
     val selectedIcon: @Composable () -> Unit,
     val unselectedIcon: @Composable () -> Unit
 ) {
-    object Home : Screen(
-        "home", "猫窝",
-        { Icon(Icons.Filled.Home, contentDescription = null) },
-        { Icon(Icons.Outlined.Home, contentDescription = null) }
-    )
-    object Stats : Screen(
-        "stats", "统计",
-        { Icon(Icons.Filled.BarChart, contentDescription = null) },
-        { Icon(Icons.Outlined.BarChart, contentDescription = null) }
-    )
-    object Shop : Screen(
-        "shop", "商店",
-        { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
-        { Icon(Icons.Outlined.ShoppingCart, contentDescription = null) }
-    )
-    object Settings : Screen(
-        "settings", "设置",
-        { Icon(Icons.Filled.Settings, contentDescription = null) },
-        { Icon(Icons.Outlined.Settings, contentDescription = null) }
-    )
+    object Home : Screen("home", "猫窝", { Icon(Icons.Filled.Home, contentDescription = null) }, { Icon(Icons.Outlined.Home, contentDescription = null) })
+    object Stats : Screen("stats", "统计", { Icon(Icons.Filled.BarChart, contentDescription = null) }, { Icon(Icons.Outlined.BarChart, contentDescription = null) })
+    object Shop : Screen("shop", "商店", { Icon(Icons.Filled.ShoppingCart, contentDescription = null) }, { Icon(Icons.Outlined.ShoppingCart, contentDescription = null) })
+    object Social : Screen("social", "社交", { Icon(Icons.Filled.Share, contentDescription = null) }, { Icon(Icons.Outlined.Share, contentDescription = null) })
+    object Premium : Screen("premium", "会员", { Icon(Icons.Filled.WorkspacePremium, contentDescription = null) }, { Icon(Icons.Outlined.WorkspacePremium, contentDescription = null) })
+    object Settings : Screen("settings", "设置", { Icon(Icons.Filled.Settings, contentDescription = null) }, { Icon(Icons.Outlined.Settings, contentDescription = null) })
 }
 
 @Composable
-fun MainScreen(repository: CatRepository) {
+fun MainScreen(
+    repository: CatRepository,
+    soundManager: SoundManager,
+    adManager: AdManager,
+    billingManager: BillingManager,
+    socialManager: SocialManager
+) {
     val navController = rememberNavController()
-    val screens = listOf(Screen.Home, Screen.Stats, Screen.Shop, Screen.Settings)
+    val screens = listOf(Screen.Home, Screen.Stats, Screen.Shop, Screen.Social, Screen.Premium, Screen.Settings)
     val context = LocalContext.current
     val today = remember { LocalDate.now() }
 
-    // 状态
     var cat by remember { mutableStateOf(repository.getCat()) }
     var settings by remember { mutableStateOf(repository.getSettings()) }
     var todaySummary by remember { mutableStateOf(repository.getDailySummary(today)) }
@@ -103,10 +116,12 @@ fun MainScreen(repository: CatRepository) {
     var lockedAchievements by remember { mutableStateOf(repository.getLockedAchievements(cat)) }
     var consecutiveDays by remember { mutableStateOf(repository.getConsecutiveDays()) }
 
+    // 同步设置到 SoundManager
+    LaunchedEffect(settings.soundEnabled) { soundManager.setSoundEnabled(settings.soundEnabled) }
+    LaunchedEffect(settings.vibrationEnabled) { soundManager.setVibrationEnabled(settings.vibrationEnabled) }
+
     // 应用自然衰减
-    LaunchedEffect(Unit) {
-        cat = repository.applyNaturalDecay(cat)
-    }
+    LaunchedEffect(Unit) { cat = repository.applyNaturalDecay(cat) }
 
     fun refreshData() {
         cat = repository.getCat()
@@ -136,9 +151,7 @@ fun MainScreen(repository: CatRepository) {
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
                             navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -163,6 +176,12 @@ fun MainScreen(repository: CatRepository) {
                         val oldIntimacy = cat.intimacy
                         val oldHappiness = cat.happiness
                         cat = repository.performAction(action, cat)
+                        // 播放音效
+                        soundManager.playActionSound(action)
+                        // 尝试展示插屏广告
+                        (context as? MainActivity)?.let { activity ->
+                            adManager.tryShowInterstitial(activity)
+                        }
                         // 记录
                         val record = CatRecord(
                             actionType = action.name,
@@ -197,6 +216,29 @@ fun MainScreen(repository: CatRepository) {
                     cat = cat,
                     onBuyItem = { item ->
                         cat = repository.buyItem(item, cat)
+                        soundManager.playPurchaseSound()
+                        refreshData()
+                    }
+                )
+            }
+            composable(Screen.Social.route) {
+                SocialTab(
+                    cat = cat,
+                    socialManager = socialManager,
+                    onShowRewardedAd = {
+                        // 看广告得金币
+                        cat = cat.copy(coins = cat.coins + 50)
+                        repository.saveCat(cat)
+                        refreshData()
+                    }
+                )
+            }
+            composable(Screen.Premium.route) {
+                PremiumTab(
+                    billingManager = billingManager,
+                    onShowRewardedAd = {
+                        cat = cat.copy(coins = cat.coins + 50)
+                        repository.saveCat(cat)
                         refreshData()
                     }
                 )
@@ -204,10 +246,10 @@ fun MainScreen(repository: CatRepository) {
             composable(Screen.Settings.route) {
                 SettingsTab(
                     settings = settings,
+                    soundManager = soundManager,
                     onSettingsChanged = { newSettings ->
                         repository.saveSettings(newSettings)
                         settings = newSettings
-                        // 同步更新猫的名字
                         if (newSettings.catName != cat.name) {
                             cat = cat.copy(name = newSettings.catName)
                             repository.saveCat(cat)

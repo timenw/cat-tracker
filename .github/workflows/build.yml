@@ -51,7 +51,7 @@ jobs:
       - name: Rename APK
         run: |
           VERSION=$(grep "versionName" android/app/build.gradle.kts | head -1 | awk -F'versionName *= *"' '{print $2}' | awk -F'"' '{print $1}')
-          if [ -z "$VERSION" ]; then VERSION="1.0.0"; fi
+          if [ -z "$VERSION" ]; then VERSION="1.1.0"; fi
           DATE=$(date +%Y%m%d)
           SHORT_SHA=${GITHUB_SHA::7}
           APK_NAME="CatTracker-v${VERSION}-${DATE}-${SHORT_SHA}.apk"
