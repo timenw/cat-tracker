@@ -1,6 +1,7 @@
 package com.timenw.cattracker.ui.screens
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,7 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -495,9 +499,9 @@ fun CatHomeTab(
                     )
                 }
             } else {
-                val formatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
                 items(recentRecords.takeLast(10).reversed(), key = { it.id }) { record ->
                     val action = try { CatAction.valueOf(record.actionType) } catch (e: Exception) { null }
+                    val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -549,7 +553,8 @@ fun ActionButton(
     onAction: (CatAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val repository = remember { CatRepository(androidx.compose.ui.platform.LocalContext.current) }
+    val context = LocalContext.current
+    val repository = remember(context) { CatRepository(context) }
     val isOnCooldown = remember(cat.lastInteractionTime, cat.lastFeedTime, cat.lastPlayTime, cat.lastCleanTime) {
         repository.isActionOnCooldown(action, cat)
     }

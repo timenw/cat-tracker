@@ -9,6 +9,10 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -101,7 +105,7 @@ fun WeeklyStatsContent(weeklyData: List<DailyCatSummary>, cat: Cat, consecutiveD
                 SummaryCard(title = "清洁", value = "${totalCleans}次", modifier = Modifier.weight(1f), emoji = "🛁")
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMax()) {
+            Row(modifier = Modifier.fillMaxWidth()) {
                 SummaryCard(title = "亲密度", value = "+${totalIntimacy}", modifier = Modifier.weight(1f), emoji = "💕")
                 Spacer(modifier = Modifier.width(8.dp))
                 SummaryCard(title = "金币", value = "+${totalCoins}", modifier = Modifier.weight(1f), emoji = "💰")

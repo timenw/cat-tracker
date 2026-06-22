@@ -312,7 +312,7 @@ class CatRepository(private val context: Context) {
 
     fun applyNaturalDecay(cat: Cat): Cat {
         val hoursSinceLastInteraction = (System.currentTimeMillis() - cat.lastInteractionTime) / (1000 * 60 * 60)
-        val decayFactor = hoursSinceLastInteraction.coerceAtMost(24)
+        val decayFactor = hoursSinceLastInteraction.coerceAtMost(24).toInt()
         val newCat = cat.copy(
             hunger = (cat.hunger - decayFactor * 2).coerceIn(0, 100),
             happiness = (cat.happiness - decayFactor * 1).coerceIn(0, 100),
