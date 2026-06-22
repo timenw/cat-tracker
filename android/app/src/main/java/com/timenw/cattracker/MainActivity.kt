@@ -124,7 +124,6 @@ fun MainScreen(
 
     // 同步设置到 SoundManager
     LaunchedEffect(settings.soundEnabled) { soundManager.setSoundEnabled(settings.soundEnabled) }
-    LaunchedEffect(settings.vibrationEnabled) { soundManager.setVibrationEnabled(settings.vibrationEnabled) }
 
     // 应用自然衰减
     LaunchedEffect(Unit) { cat = repository.applyNaturalDecay(cat) }

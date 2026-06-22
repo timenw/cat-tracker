@@ -131,13 +131,13 @@ fun CatHomeTab(
                 Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         StatBar(label = "饱食度", value = cat.hunger, color = if (cat.hunger < 30) CatDanger else CatSafe, emoji = "🍖")
-                        Spacer(8.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
                         StatBar(label = "心情", value = cat.happiness, color = if (cat.happiness < 30) CatWarning else CatSafe, emoji = "😊")
-                        Spacer(8.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
                         StatBar(label = "精力", value = cat.energy, color = if (cat.energy < 30) CatWarning else CatSafe, emoji = "⚡")
-                        Spacer(8.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
                         StatBar(label = "清洁度", value = cat.cleanliness, color = if (cat.cleanliness < 30) CatWarning else CatSafe, emoji = "✨")
-                        Spacer(8.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("⚖️ 体重: ${String.format("%.1f", cat.weight)}kg (${cat.weightStatus})",
                                 style = MaterialTheme.typography.bodySmall,
@@ -153,7 +153,7 @@ fun CatHomeTab(
 
             item {
                 Text("🤚 撸猫", style = MaterialTheme.typography.labelLarge, color = CatOrange)
-                Spacer(4.dp)
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionButton(CatAction.PET_HEAD, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "摸头 +${action.intimacyBonus}💕"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
                     ActionButton(CatAction.SCRATCH_CHIN, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "挠下巴 +${action.intimacyBonus}💕"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
@@ -163,7 +163,7 @@ fun CatHomeTab(
 
             item {
                 Text("🍖 喂食", style = MaterialTheme.typography.labelLarge, color = CatOrange)
-                Spacer(4.dp)
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionButton(CatAction.FEED_FOOD, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂猫粮 饱食度+30"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
                     ActionButton(CatAction.FEED_SNACK, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂零食 饱食度+20 心情+"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
@@ -173,7 +173,7 @@ fun CatHomeTab(
 
             item {
                 Text("🪶 玩耍", style = MaterialTheme.typography.labelLarge, color = CatOrange)
-                Spacer(4.dp)
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionButton(CatAction.PLAY_CAT_TEASE, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "逗猫棒 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
                     ActionButton(CatAction.PLAY_BALL, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "毛线球 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
@@ -183,7 +183,7 @@ fun CatHomeTab(
 
             item {
                 Text("🛁 清洁", style = MaterialTheme.typography.labelLarge, color = CatOrange)
-                Spacer(4.dp)
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionButton(CatAction.CLEAN_BATH, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "洗澡完成 清洁度+50"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
                     ActionButton(CatAction.CLEAN_BRUSH, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "梳毛完成 清洁度+30"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
@@ -204,20 +204,20 @@ fun CatHomeTab(
             // 今日数据
             item {
                 Text("今日数据", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Spacer(4.dp)
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     SummaryCard(title = "互动", value = "${todaySummary.interactionCount}次", modifier = Modifier.weight(1f), emoji = "🤚")
-                    Spacer(8.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     SummaryCard(title = "喂食", value = "${todaySummary.feedCount}次", modifier = Modifier.weight(1f), emoji = "🍖")
-                    Spacer(8.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     SummaryCard(title = "玩耍", value = "${todaySummary.playCount}次", modifier = Modifier.weight(1f), emoji = "🪶")
                 }
-                Spacer(8.dp)
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     SummaryCard(title = "亲密度", value = "+${todaySummary.totalIntimacyGain}", modifier = Modifier.weight(1f), emoji = "💕")
-                    Spacer(8.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     SummaryCard(title = "金币", value = "+${todaySummary.coinsEarned}", modifier = Modifier.weight(1f), emoji = "💰")
-                    Spacer(8.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     SummaryCard(title = "清洁", value = "${todaySummary.cleanCount}次", modifier = Modifier.weight(1f), emoji = "🛁")
                 }
             }
@@ -228,9 +228,9 @@ fun CatHomeTab(
             if (recentRecords.isEmpty()) {
                 item { EmptyStateView(emoji = "🐱", title = "还没有撸猫记录", subtitle = "快和你的小猫互动吧！") }
             } else {
-                val formatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
                 items(recentRecords.takeLast(10).reversed(), key = { it.id }) { record ->
                     val action = try { CatAction.valueOf(record.actionType) } catch (e: Exception) { null }
+                    val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(text = action?.emoji ?: "🐱", fontSize = 20.sp, modifier = Modifier.padding(end = 12.dp))
