@@ -22,7 +22,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -43,13 +42,18 @@ fun CatHomeTab(
     todaySummary: DailyCatSummary,
     recentRecords: List<CatRecord>,
     settings: UserSettings,
-    isPremium: Boolean = false,
     onAction: (CatAction) -> Unit,
-    onSettingsChanged: (UserSettings) -> Unit
+    onSettingsChanged: (UserSettings) -> Unit,
+    onShowRewardedAd: () -> Unit = {}
 ) {
     var showActionMessage by remember { mutableStateOf("") }
     var showMessageTimestamp by remember { mutableStateOf(0L) }
     var currentAnim by remember { mutableStateOf(cat.currentAnimation) }
+    var pendingAction by remember { mutableStateOf<CatAction?>(null) }
+    var showAdDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val repository = remember { CatRepository(context) }
 
     // 动画状态
     LaunchedEffect(showMessageTimestamp) {
@@ -61,6 +65,56 @@ fun CatHomeTab(
         }
     }
 
+    // 看广告解锁对话框
+    if (showAdDialog && pendingAction != null) {
+        AlertDialog(
+            onDismissRequest = { showAdDialog = false; pendingAction = null },
+            title = { Text("今日免费次数已用完") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🐱", fontSize = 48.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "每项互动每天可免费使用 ${FREE_DAILY_ACTIONS} 次",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "观看一段广告即可继续互动",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CatOrange,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showAdDialog = false
+                        val action = pendingAction
+                        pendingAction = null
+                        // 执行互动（广告已看完）
+                        if (action != null) {
+                            onAction(action)
+                            showActionMessage = "广告观看成功！互动完成 ✨"
+                            showMessageTimestamp = System.currentTimeMillis()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = CatOrange)
+                ) {
+                    Text("📺 观看广告")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdDialog = false; pendingAction = null }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         CenterAlignedTopAppBar(
             title = {
@@ -68,10 +122,6 @@ fun CatHomeTab(
                     Text("🐱", fontSize = 24.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("撸了喵", fontWeight = FontWeight.Bold)
-                    if (isPremium) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("👑", fontSize = 16.sp)
-                    }
                 }
             },
             actions = {
@@ -99,13 +149,7 @@ fun CatHomeTab(
                         AnimatedCatView(cat = cat, animation = currentAnim)
 
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(cat.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                            if (cat.skinId != 0) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("(${cat.skinName})", style = MaterialTheme.typography.bodySmall, color = CatGold)
-                            }
-                        }
+                        Text(cat.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                         Text("${cat.levelTitle} Lv.${cat.level}", style = MaterialTheme.typography.bodyMedium, color = CatGold)
                         Spacer(modifier = Modifier.height(4.dp))
                         // 经验条
@@ -155,9 +199,24 @@ fun CatHomeTab(
                 Text("🤚 撸猫", style = MaterialTheme.typography.labelLarge, color = CatOrange)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton(CatAction.PET_HEAD, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "摸头 +${action.intimacyBonus}💕"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.SCRATCH_CHIN, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "挠下巴 +${action.intimacyBonus}💕"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.RUB_BELLY, cat, onAction = { action -> triggerAction(action, onAction) { val ok = Random().nextFloat() > 0.3f; showActionMessage = if (ok) "撸肚子成功 +${action.intimacyBonus}💕" else "猫翻脸了！😾"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
+                    ActionButton(
+                        action = CatAction.PET_HEAD, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "摸头 +${action.intimacyBonus}💕"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.SCRATCH_CHIN, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "挠下巴 +${action.intimacyBonus}💕"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.RUB_BELLY, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { val ok = Random().nextFloat() > 0.3f; showActionMessage = if (ok) "撸肚子成功 +${action.intimacyBonus}💕" else "猫翻脸了！😾"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -165,9 +224,24 @@ fun CatHomeTab(
                 Text("🍖 喂食", style = MaterialTheme.typography.labelLarge, color = CatOrange)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton(CatAction.FEED_FOOD, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂猫粮 饱食度+30"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.FEED_SNACK, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂零食 饱食度+20 心情+"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.FEED_CAN, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂罐头 饱食度+40"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
+                    ActionButton(
+                        action = CatAction.FEED_FOOD, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂猫粮 饱食度+30"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.FEED_SNACK, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂零食 饱食度+20"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.FEED_CAN, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "喂罐头 饱食度+40"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -175,9 +249,24 @@ fun CatHomeTab(
                 Text("🪶 玩耍", style = MaterialTheme.typography.labelLarge, color = CatOrange)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton(CatAction.PLAY_CAT_TEASE, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "逗猫棒 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.PLAY_BALL, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "毛线球 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.PLAY_LASER, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "激光笔 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
+                    ActionButton(
+                        action = CatAction.PLAY_CAT_TEASE, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "逗猫棒 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.PLAY_BALL, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "毛线球 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.PLAY_LASER, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "激光笔 心情+${action.happinessBonus}"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -185,9 +274,24 @@ fun CatHomeTab(
                 Text("🛁 清洁", style = MaterialTheme.typography.labelLarge, color = CatOrange)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton(CatAction.CLEAN_BATH, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "洗澡完成 清洁度+50"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.CLEAN_BRUSH, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "梳毛完成 清洁度+30"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
-                    ActionButton(CatAction.SLEEP, cat, onAction = { action -> triggerAction(action, onAction) { showActionMessage = "猫睡着了 精力恢复"; showMessageTimestamp = System.currentTimeMillis() } }, Modifier.weight(1f))
+                    ActionButton(
+                        action = CatAction.CLEAN_BATH, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "洗澡完成 清洁度+50"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.CLEAN_BRUSH, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "梳毛完成 清洁度+30"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        action = CatAction.SLEEP, cat = cat, repository = repository,
+                        onAction = { action -> triggerAction(action, onAction) { showActionMessage = "猫睡着了 精力恢复"; showMessageTimestamp = System.currentTimeMillis() } },
+                        onNeedAd = { pendingAction = it; showAdDialog = true },
+                        Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -207,17 +311,17 @@ fun CatHomeTab(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     SummaryCard(title = "互动", value = "${todaySummary.interactionCount}次", modifier = Modifier.weight(1f), emoji = "🤚")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     SummaryCard(title = "喂食", value = "${todaySummary.feedCount}次", modifier = Modifier.weight(1f), emoji = "🍖")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     SummaryCard(title = "玩耍", value = "${todaySummary.playCount}次", modifier = Modifier.weight(1f), emoji = "🪶")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     SummaryCard(title = "亲密度", value = "+${todaySummary.totalIntimacyGain}", modifier = Modifier.weight(1f), emoji = "💕")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     SummaryCard(title = "金币", value = "+${todaySummary.coinsEarned}", modifier = Modifier.weight(1f), emoji = "💰")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     SummaryCard(title = "清洁", value = "${todaySummary.cleanCount}次", modifier = Modifier.weight(1f), emoji = "🛁")
                 }
             }
@@ -257,11 +361,63 @@ private fun triggerAction(action: CatAction, onAction: (CatAction) -> Unit, onCo
 }
 
 /**
- * 动画猫形象 — 根据动画状态播放不同动画
+ * 互动按钮 — 显示剩余免费次数，超出后触发广告
  */
 @Composable
+fun ActionButton(
+    action: CatAction, cat: Cat,
+    repository: CatRepository,
+    onAction: (CatAction) -> Unit,
+    onNeedAd: (CatAction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isOnCooldown = remember(cat.lastInteractionTime, cat.lastFeedTime, cat.lastPlayTime, cat.lastCleanTime) {
+        repository.isActionOnCooldown(action, cat)
+    }
+    val cooldownRemaining = if (isOnCooldown) repository.getCooldownRemaining(action, cat) else 0L
+    val freeRemaining = remember(cat.dailyActionCounts, cat.dailyActionDate) {
+        repository.getFreeUsesRemaining(cat, action)
+    }
+    val needsAd = remember(cat.dailyActionCounts, cat.dailyActionDate) {
+        repository.needsAdForAction(cat, action)
+    }
+
+    FilledTonalButton(
+        onClick = {
+            if (!isOnCooldown) {
+                if (needsAd) {
+                    onNeedAd(action)
+                } else {
+                    onAction(action)
+                }
+            }
+        },
+        modifier = modifier.height(64.dp),
+        enabled = !isOnCooldown,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = if (needsAd) CatOrange.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primaryContainer,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = action.emoji, fontSize = 18.sp)
+            Text(text = action.displayName, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            if (isOnCooldown && cooldownRemaining > 0) {
+                CooldownTimer(remainingMs = cooldownRemaining)
+            } else if (needsAd) {
+                Text(text = "📺 看广告", style = MaterialTheme.typography.labelSmall, color = CatOrange, fontWeight = FontWeight.Bold)
+            } else {
+                Text(text = "剩余${freeRemaining}次", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+// ==================== 以下为动画猫形象代码（保持不变） ====================
+
+@Composable
 fun AnimatedCatView(cat: Cat, animation: String) {
-    // 弹跳动画
     val bounceAnim = rememberInfiniteTransition(label = "bounce")
     val bounceY by bounceAnim.animateFloat(
         initialValue = 0f, targetValue = -8f,
@@ -269,7 +425,6 @@ fun AnimatedCatView(cat: Cat, animation: String) {
         label = "bounceY"
     )
 
-    // 呼吸动画（缩放）
     val breathAnim = rememberInfiniteTransition(label = "breath")
     val breathScale by breathAnim.animateFloat(
         initialValue = 1f, targetValue = 1.05f,
@@ -277,7 +432,6 @@ fun AnimatedCatView(cat: Cat, animation: String) {
         label = "breathScale"
     )
 
-    // 旋转动画（玩耍时）
     val rotationAnim = rememberInfiniteTransition(label = "rotation")
     val rotation by rotationAnim.animateFloat(
         initialValue = -5f, targetValue = 5f,
@@ -285,21 +439,21 @@ fun AnimatedCatView(cat: Cat, animation: String) {
         label = "rotation"
     )
 
-    // 根据动画状态调整参数
+    val catColor = Color(0xFFFFB74D)
+
     val (scale, offsetY, rot, bgColor) = when (animation) {
         "happy" -> listOf(1.15f, bounceY * 1.5f, 0f, CatOrange.copy(alpha = 0.25f))
         "eating" -> listOf(1.05f, 0f, 0f, CatSafe.copy(alpha = 0.2f))
         "playing" -> listOf(1.1f, bounceY * 2f, rotation, CatPurple.copy(alpha = 0.2f))
         "bathing" -> listOf(0.95f, 0f, rotation * 0.5f, CatTeal.copy(alpha = 0.2f))
         "sleeping" -> listOf(1f, 4f, 0f, Color(0xFF3E2723).copy(alpha = 0.15f))
-        else -> listOf(breathScale, bounceY, 0f, Color(cat.skinColor).copy(alpha = 0.2f))
+        else -> listOf(breathScale, bounceY, 0f, catColor.copy(alpha = 0.2f))
     }
 
     Box(
         modifier = Modifier.size(120.dp),
         contentAlignment = Alignment.Center
     ) {
-        // 背景圆圈
         Box(
             modifier = Modifier
                 .size(100.dp)
@@ -309,33 +463,27 @@ fun AnimatedCatView(cat: Cat, animation: String) {
                 .background(bgColor as Color),
             contentAlignment = Alignment.Center
         ) {
-            // 猫脸绘制
             Canvas(modifier = Modifier.size(80.dp)) {
-                drawCatFace(cat, animation)
+                drawCatFace(animation)
             }
         }
     }
 }
 
-/**
- * 绘制可爱的猫脸
- */
-fun DrawScope.drawCatFace(cat: Cat, animation: String) {
+fun DrawScope.drawCatFace(animation: String) {
     val cx = size.width / 2
     val cy = size.height / 2
     val r = size.width / 2
+    val faceColor = Color(0xFFFFB74D)
 
     // 脸
-    val faceColor = Color(cat.skinColor)
     drawCircle(color = faceColor, radius = r * 0.9f, center = Offset(cx, cy))
 
     // 耳朵
     val earSize = r * 0.3f
     val earOffset = r * 0.5f
-    // 左耳
     drawCircle(color = faceColor, radius = earSize, center = Offset(cx - earOffset, cy - earOffset))
     drawCircle(color = Color(0xFFFFAB91), radius = earSize * 0.6f, center = Offset(cx - earOffset, cy - earOffset))
-    // 右耳
     drawCircle(color = faceColor, radius = earSize, center = Offset(cx + earOffset, cy - earOffset))
     drawCircle(color = Color(0xFFFFAB91), radius = earSize * 0.6f, center = Offset(cx + earOffset, cy - earOffset))
 
@@ -346,20 +494,16 @@ fun DrawScope.drawCatFace(cat: Cat, animation: String) {
 
     when (animation) {
         "sleeping" -> {
-            // 闭眼（弧线）
             drawLine(color = Color(0xFF5D4037), start = Offset(cx - eyeSpacing - eyeR, eyeY), end = Offset(cx - eyeSpacing + eyeR, eyeY), strokeWidth = 3f)
             drawLine(color = Color(0xFF5D4037), start = Offset(cx + eyeSpacing - eyeR, eyeY), end = Offset(cx + eyeSpacing + eyeR, eyeY), strokeWidth = 3f)
         }
         "happy", "playing" -> {
-            // 开心的眼睛（弯月形）
             drawCircle(color = Color(0xFF5D4037), radius = eyeR * 1.2f, center = Offset(cx - eyeSpacing, eyeY))
             drawCircle(color = Color(0xFF5D4037), radius = eyeR * 1.2f, center = Offset(cx + eyeSpacing, eyeY))
-            // 高光
             drawCircle(color = Color.White, radius = eyeR * 0.4f, center = Offset(cx - eyeSpacing + 2, eyeY - 3))
             drawCircle(color = Color.White, radius = eyeR * 0.4f, center = Offset(cx + eyeSpacing + 2, eyeY - 3))
         }
         else -> {
-            // 普通眼睛
             drawCircle(color = Color.White, radius = eyeR, center = Offset(cx - eyeSpacing, eyeY))
             drawCircle(color = Color.White, radius = eyeR, center = Offset(cx + eyeSpacing, eyeY))
             drawCircle(color = Color(0xFF5D4037), radius = eyeR * 0.6f, center = Offset(cx - eyeSpacing, eyeY))
@@ -376,20 +520,16 @@ fun DrawScope.drawCatFace(cat: Cat, animation: String) {
     // 嘴巴
     val mouthY = cy + r * 0.25f
     val mouthW = r * 0.15f
-    // 根据表情画嘴
     when (animation) {
         "happy", "playing", "eating" -> {
-            // 开心的嘴
             drawLine(color = Color(0xFF5D4037), start = Offset(cx - mouthW, mouthY), end = Offset(cx, mouthY - 4), strokeWidth = 2.5f)
             drawLine(color = Color(0xFF5D4037), start = Offset(cx, mouthY - 4), end = Offset(cx + mouthW, mouthY), strokeWidth = 2.5f)
         }
         "bathing" -> {
-            // 不开心的嘴
             drawLine(color = Color(0xFF5D4037), start = Offset(cx - mouthW, mouthY + 3), end = Offset(cx, mouthY), strokeWidth = 2.5f)
             drawLine(color = Color(0xFF5D4037), start = Offset(cx, mouthY), end = Offset(cx + mouthW, mouthY + 3), strokeWidth = 2.5f)
         }
         else -> {
-            // 普通嘴
             drawLine(color = Color(0xFF5D4037), start = Offset(cx - mouthW, mouthY), end = Offset(cx + mouthW, mouthY), strokeWidth = 2.5f)
         }
     }
@@ -397,19 +537,15 @@ fun DrawScope.drawCatFace(cat: Cat, animation: String) {
     // 胡须
     val whiskerY = cy + r * 0.15f
     val whiskerLen = r * 0.25f
-    // 左边胡须
     drawLine(color = Color(0xFF8D6E63), start = Offset(cx - r * 0.7f, whiskerY - 3), end = Offset(cx - r * 0.7f - whiskerLen, whiskerY - 5), strokeWidth = 1.5f)
     drawLine(color = Color(0xFF8D6E63), start = Offset(cx - r * 0.7f, whiskerY), end = Offset(cx - r * 0.7f - whiskerLen, whiskerY), strokeWidth = 1.5f)
     drawLine(color = Color(0xFF8D6E63), start = Offset(cx - r * 0.7f, whiskerY + 3), end = Offset(cx - r * 0.7f - whiskerLen, whiskerY + 5), strokeWidth = 1.5f)
-    // 右边胡须
     drawLine(color = Color(0xFF8D6E63), start = Offset(cx + r * 0.7f, whiskerY - 3), end = Offset(cx + r * 0.7f + whiskerLen, whiskerY - 5), strokeWidth = 1.5f)
     drawLine(color = Color(0xFF8D6E63), start = Offset(cx + r * 0.7f, whiskerY), end = Offset(cx + r * 0.7f + whiskerLen, whiskerY), strokeWidth = 1.5f)
     drawLine(color = Color(0xFF8D6E63), start = Offset(cx + r * 0.7f, whiskerY + 3), end = Offset(cx + r * 0.7f + whiskerLen, whiskerY + 5), strokeWidth = 1.5f)
 
     // 睡觉时画 Zzz
     if (animation == "sleeping") {
-        val textPaint = androidx.compose.ui.graphics.drawscope.DrawScope
-        // 用简单线条画 Z
         val zX = cx + r * 0.5f
         val zY = cy - r * 0.6f
         drawLine(color = Color(0xFF7C4DFF), start = Offset(zX, zY), end = Offset(zX + 8, zY), strokeWidth = 2f)
@@ -427,39 +563,6 @@ fun DrawScope.drawCatFace(cat: Cat, animation: String) {
         )
         starPositions.forEach { pos ->
             drawCircle(color = starColor, radius = 3f, center = pos)
-        }
-    }
-}
-
-@Composable
-fun ActionButton(
-    action: CatAction, cat: Cat,
-    onAction: (CatAction) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val repository = remember { CatRepository(context) }
-    val isOnCooldown = remember(cat.lastInteractionTime, cat.lastFeedTime, cat.lastPlayTime, cat.lastCleanTime) {
-        repository.isActionOnCooldown(action, cat)
-    }
-    val cooldownRemaining = if (isOnCooldown) repository.getCooldownRemaining(action, cat) else 0L
-
-    FilledTonalButton(
-        onClick = { if (!isOnCooldown) onAction(action) },
-        modifier = modifier.height(56.dp),
-        enabled = !isOnCooldown,
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        shape = MaterialTheme.shapes.medium
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = action.emoji, fontSize = 18.sp)
-            Text(text = action.displayName, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-            if (isOnCooldown && cooldownRemaining > 0) {
-                CooldownTimer(remainingMs = cooldownRemaining)
-            }
         }
     }
 }

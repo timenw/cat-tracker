@@ -1,7 +1,5 @@
 package com.timenw.cattracker.data.model
 
-import com.google.gson.annotations.SerializedName
-
 // ==================== 猫的核心数据 ====================
 
 data class Cat(
@@ -26,12 +24,9 @@ data class Cat(
     val totalPlays: Int = 0,
     val totalCleans: Int = 0,
     val coins: Int = 100,
-    val skinId: Int = 0,          // 当前穿戴的皮肤ID
-    val unlockedSkins: String = "0",
-    val unlockedToys: String = "0",
-    val unlockedFoods: String = "0",
-    // 仓库：物品ID -> 数量
-    val inventory: String = "",
+    // 每日互动次数统计（按动作类型）
+    val dailyActionCounts: String = "",  // 格式: "PET_HEAD:2,FEED_FOOD:1,..."
+    val dailyActionDate: String = "",    // 当天日期，跨天重置
     // 当前动画状态
     val currentAnimation: String = "idle"
 ) {
@@ -87,41 +82,19 @@ data class Cat(
     val isDirty: Boolean get() = cleanliness < 30
     val isTired: Boolean get() = energy < 30
     val isOverweight: Boolean get() = weight > 7.0f
-
-    // 获取皮肤主色调（用于猫窝显示）
-    val skinColor: Long
-        get() = when (skinId) {
-            21 -> 0xFFFF8A65 // 橘猫 - 橙色
-            22 -> 0xFF424242 // 黑猫 - 深灰
-            23 -> 0xFFF5F5F5 // 白猫 - 白色
-            24 -> 0xFFFFAB91 // 三花 - 浅橙
-            25 -> 0xFF7C4DFF // 赛博 - 紫色
-            else -> 0xFFFFB74D // 默认 - 金色
-        }
-
-    // 获取皮肤名称
-    val skinName: String
-        get() = when (skinId) {
-            21 -> "橘猫"
-            22 -> "黑猫"
-            23 -> "白猫"
-            24 -> "三花猫"
-            25 -> "赛博猫"
-            else -> "默认"
-        }
 }
 
 // ==================== 猫品种 ====================
 
-enum class CatBreed(val displayName: String, val emoji: String, val description: String, val isPremium: Boolean = false) {
+enum class CatBreed(val displayName: String, val emoji: String, val description: String) {
     DOMESTIC_SHORTHAIR("中华田园猫", "🐱", "活泼好动，适应力强"),
     PERSIAN("波斯猫", "😺", "温顺优雅，长毛飘逸"),
     BRITISH_SHORTHAIR("英短", "😸", "圆脸大眼，性格温和"),
-    RAGDOLL("布偶猫", "😻", "温柔粘人，像布偶一样", true),
-    SCOTTISH_FOLD("折耳猫", "🐈", "可爱折耳，甜美乖巧", true),
-    SIAMESE("暹罗猫", "😼", "聪明活泼，话特别多", true),
-    MAINE_COON("缅因猫", "🦁", "体型巨大，温柔巨人", true),
-    BENGAL("孟加拉猫", "🐆", "野性花纹，精力充沛", true)
+    RAGDOLL("布偶猫", "😻", "温柔粘人，像布偶一样"),
+    SCOTTISH_FOLD("折耳猫", "🐈", "可爱折耳，甜美乖巧"),
+    SIAMESE("暹罗猫", "😼", "聪明活泼，话特别多"),
+    MAINE_COON("缅因猫", "🦁", "体型巨大，温柔巨人"),
+    BENGAL("孟加拉猫", "🐆", "野性花纹，精力充沛")
 }
 
 // ==================== 心情枚举 ====================
@@ -160,26 +133,6 @@ enum class CatAction(
     SLEEP("睡觉", "😴", 0, 0, 0, -50, 0, "让猫好好休息")
 }
 
-// ==================== 商店物品 ====================
-
-data class ShopItem(
-    val id: Int,
-    val name: String,
-    val emoji: String,
-    val category: ShopCategory,
-    val price: Int,
-    val description: String,
-    val effect: String,
-    val isDefault: Boolean = false
-)
-
-enum class ShopCategory(val displayName: String, val emoji: String) {
-    FOOD("食物", "🍖"),
-    TOY("玩具", "🧸"),
-    SKIN("皮肤", "👗"),
-    FURNITURE("家具", "🏠")
-}
-
 // ==================== 成就系统 ====================
 
 data class Achievement(
@@ -193,14 +146,14 @@ data class Achievement(
 )
 
 enum class AchievementType {
-    TOTAL_INTERACTIONS,   // 总互动次数
-    TOTAL_FEEDS,          // 总喂食次数
-    TOTAL_PLAYS,          // 总玩耍次数
-    TOTAL_CLEANS,         // 总清洁次数
-    INTIMACY_LEVEL,       // 亲密度等级
-    CAT_LEVEL,            // 猫等级
-    CONSECUTIVE_DAYS,     // 连续签到天数
-    COINS_EARNED          // 累计金币
+    TOTAL_INTERACTIONS,
+    TOTAL_FEEDS,
+    TOTAL_PLAYS,
+    TOTAL_CLEANS,
+    INTIMACY_LEVEL,
+    CAT_LEVEL,
+    CONSECUTIVE_DAYS,
+    COINS_EARNED
 }
 
 // ==================== 撸猫记录 ====================
@@ -244,36 +197,6 @@ data class UserSettings(
     val soundEnabled: Boolean = true
 )
 
-// ==================== 预定义商店物品 ====================
-
-val ALL_SHOP_ITEMS = listOf(
-    // 食物
-    ShopItem(0, "基础猫粮", "🍖", ShopCategory.FOOD, 0, "普通猫粮，饱食度+30", "饱食度+30", true),
-    ShopItem(1, "高级猫粮", "🥩", ShopCategory.FOOD, 20, "优质猫粮，饱食度+40", "饱食度+40"),
-    ShopItem(2, "小鱼干", "🐟", ShopCategory.FOOD, 15, "猫咪最爱，饱食度+20，心情+5", "饱食度+20"),
-    ShopItem(3, "猫薄荷", "🌿", ShopCategory.FOOD, 25, "让猫超级开心！心情+15", "心情+15"),
-    ShopItem(4, "金枪鱼罐头", "🥫", ShopCategory.FOOD, 30, "豪华罐头，饱食度+50", "饱食度+50"),
-    ShopItem(5, "猫蛋糕", "🍰", ShopCategory.FOOD, 50, "生日蛋糕，全属性+10", "全属性+10"),
-    // 玩具
-    ShopItem(10, "逗猫棒", "🪶", ShopCategory.TOY, 0, "基础玩具，心情+12", "心情+12", true),
-    ShopItem(11, "毛线球", "🧶", ShopCategory.TOY, 15, "经典玩具，心情+10", "心情+10"),
-    ShopItem(12, "激光笔", "🔴", ShopCategory.TOY, 30, "高科技玩具，心情+15", "心情+15"),
-    ShopItem(13, "电动老鼠", "🐭", ShopCategory.TOY, 40, "自动老鼠，心情+18", "心情+18"),
-    ShopItem(14, "猫爬架", "🏗️", ShopCategory.TOY, 100, "豪华猫爬架，全属性+5", "全属性+5"),
-    // 皮肤
-    ShopItem(20, "默认皮肤", "🐱", ShopCategory.SKIN, 0, "默认猫咪外观", "默认", true),
-    ShopItem(21, "橘猫", "🐈", ShopCategory.SKIN, 50, "大橘为重！", "橘猫皮肤"),
-    ShopItem(22, "黑猫", "🐈‍⬛", ShopCategory.SKIN, 50, "神秘黑猫", "黑猫皮肤"),
-    ShopItem(23, "白猫", "😺", ShopCategory.SKIN, 50, "纯白如雪", "白猫皮肤"),
-    ShopItem(24, "三花猫", "😻", ShopCategory.SKIN, 80, "可爱三花", "三花猫皮肤"),
-    ShopItem(25, "赛博猫", "🤖", ShopCategory.SKIN, 200, "未来科技感", "赛博猫皮肤"),
-    // 家具
-    ShopItem(30, "纸箱", "📦", ShopCategory.FURNITURE, 0, "猫最爱的纸箱！", "基础猫窝", true),
-    ShopItem(31, "小木屋", "🛖", ShopCategory.FURNITURE, 80, "温馨小木屋", "舒适猫窝"),
-    ShopItem(32, "豪华猫窝", "🏰", ShopCategory.FURNITURE, 200, "皇家级猫窝", "豪华猫窝"),
-    ShopItem(33, "猫树", "🌳", ShopCategory.FURNITURE, 150, "多层猫树", "娱乐猫窝")
-)
-
 // ==================== 预定义成就 ====================
 
 val ALL_ACHIEVEMENTS = listOf(
@@ -299,52 +222,37 @@ val ALL_ACHIEVEMENTS = listOf(
     Achievement(20, "猫界首富", "💎", "累计获得2000金币", 2000, AchievementType.COINS_EARNED, 500)
 )
 
-// ==================== 仓库工具函数 ====================
+// ==================== 每日互动次数工具 ====================
 
-/**
- * 解析仓库字符串为 Map
- */
-fun parseInventory(inventory: String): Map<Int, Int> {
-    if (inventory.isBlank()) return emptyMap()
-    return inventory.split(",").mapNotNull { entry ->
+/** 每项互动每天免费次数 */
+const val FREE_DAILY_ACTIONS = 2
+
+/** 解析每日次数字符串 "ACTION:COUNT,..." */
+fun parseDailyCounts(counts: String): Map<String, Int> {
+    if (counts.isBlank()) return emptyMap()
+    return counts.split(",").mapNotNull { entry ->
         val parts = entry.split(":")
         if (parts.size == 2) {
-            val id = parts[0].toIntOrNull()
+            val action = parts[0]
             val count = parts[1].toIntOrNull()
-            if (id != null && count != null) id to count else null
+            if (count != null) action to count else null
         } else null
     }.toMap()
 }
 
-/**
- * 将仓库 Map 序列化为字符串
- */
-fun serializeInventory(map: Map<Int, Int>): String {
+/** 序列化每日次数为字符串 */
+fun serializeDailyCounts(map: Map<String, Int>): String {
     return map.entries.joinToString(",") { "${it.key}:${it.value}" }
 }
 
-/**
- * 添加物品到仓库
- */
-fun addToInventory(inventory: String, itemId: Int, count: Int = 1): String {
-    val map = parseInventory(inventory).toMutableMap()
-    map[itemId] = (map[itemId] ?: 0) + count
-    return serializeInventory(map)
+/** 获取某动作今日已使用次数 */
+fun getActionCount(counts: String, actionName: String): Int {
+    return parseDailyCounts(counts)[actionName] ?: 0
 }
 
-/**
- * 从仓库移除物品
- */
-fun removeFromInventory(inventory: String, itemId: Int, count: Int = 1): String {
-    val map = parseInventory(inventory).toMutableMap()
-    val current = map[itemId] ?: return inventory
-    if (current <= count) map.remove(itemId) else map[itemId] = current - count
-    return serializeInventory(map)
-}
-
-/**
- * 获取仓库中物品数量
- */
-fun getItemCount(inventory: String, itemId: Int): Int {
-    return parseInventory(inventory)[itemId] ?: 0
+/** 增加某动作的今日使用次数 */
+fun incrementActionCount(counts: String, actionName: String): String {
+    val map = parseDailyCounts(counts).toMutableMap()
+    map[actionName] = (map[actionName] ?: 0) + 1
+    return serializeDailyCounts(map)
 }

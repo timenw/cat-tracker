@@ -123,9 +123,42 @@ class CatRepository(private val context: Context) {
         return (action.cooldownMs - (System.currentTimeMillis() - lastTime)).coerceAtLeast(0L)
     }
 
+    // ==================== 每日互动次数限制 ====================
+
     /**
-     * 执行互动 — 返回更新后的猫（含动画状态）
+     * 检查今日是否需要看广告才能继续
+     * 每项互动每天免费2次，超出后需要看广告
      */
+    fun needsAdForAction(cat: Cat, action: CatAction): Boolean {
+        val today = LocalDate.now().toString()
+        // 跨天重置
+        val counts = if (cat.dailyActionDate != today) "" else cat.dailyActionCounts
+        val used = getActionCount(counts, action.name)
+        return used >= FREE_DAILY_ACTIONS
+    }
+
+    /**
+     * 获取今日剩余免费次数
+     */
+    fun getFreeUsesRemaining(cat: Cat, action: CatAction): Int {
+        val today = LocalDate.now().toString()
+        val counts = if (cat.dailyActionDate != today) "" else cat.dailyActionCounts
+        val used = getActionCount(counts, action.name)
+        return (FREE_DAILY_ACTIONS - used).coerceAtLeast(0)
+    }
+
+    /**
+     * 记录一次互动（增加计数）
+     */
+    fun recordActionUse(cat: Cat, action: CatAction): Cat {
+        val today = LocalDate.now().toString()
+        val counts = if (cat.dailyActionDate != today) "" else cat.dailyActionCounts
+        val newCounts = incrementActionCount(counts, action.name)
+        return cat.copy(dailyActionCounts = newCounts, dailyActionDate = today)
+    }
+
+    // ==================== 执行互动 ====================
+
     fun performAction(action: CatAction, cat: Cat): Cat {
         val animName = when (action) {
             CatAction.PET_HEAD, CatAction.SCRATCH_CHIN, CatAction.RUB_BELLY -> "happy"
@@ -183,86 +216,6 @@ class CatRepository(private val context: Context) {
         return newCat
     }
 
-    /**
-     * 购买物品 — 放入仓库，不自动使用
-     */
-    fun buyItem(item: ShopItem, cat: Cat, isPremium: Boolean = false): Cat {
-        // 会员皮肤免费
-        val actualPrice = if (isPremium && item.category == ShopCategory.SKIN && !item.isDefault) 0 else item.price
-        if (cat.coins < actualPrice) return cat
-
-        var newCat = cat.copy(coins = cat.coins - actualPrice)
-
-        when (item.category) {
-            ShopCategory.SKIN -> {
-                val skins = if (cat.unlockedSkins.isEmpty()) mutableSetOf()
-                    else cat.unlockedSkins.split(",").mapNotNull { it.toIntOrNull() }.toMutableSet()
-                skins.add(item.id)
-                newCat = newCat.copy(unlockedSkins = skins.joinToString(","))
-            }
-            ShopCategory.FOOD, ShopCategory.TOY, ShopCategory.FURNITURE -> {
-                // 放入仓库
-                newCat = newCat.copy(inventory = addToInventory(cat.inventory, item.id, 1))
-            }
-        }
-        saveCat(newCat)
-        return newCat
-    }
-
-    /**
-     * 使用仓库中的物品
-     */
-    fun useItem(item: ShopItem, cat: Cat): Cat {
-        val count = getItemCount(cat.inventory, item.id)
-        if (count <= 0) return cat
-
-        var newCat = cat.copy(inventory = removeFromInventory(cat.inventory, item.id, 1))
-
-        when (item.category) {
-            ShopCategory.FOOD -> {
-                newCat = when (item.id) {
-                    1 -> newCat.copy(hunger = (cat.hunger + 40).coerceIn(0, 100))
-                    2 -> newCat.copy(hunger = (cat.hunger + 20).coerceIn(0, 100), happiness = (cat.happiness + 5).coerceIn(0, 100))
-                    3 -> newCat.copy(happiness = (cat.happiness + 15).coerceIn(0, 100))
-                    4 -> newCat.copy(hunger = (cat.hunger + 50).coerceIn(0, 100))
-                    5 -> newCat.copy(hunger = (cat.hunger + 10).coerceIn(0, 100), happiness = (cat.happiness + 10).coerceIn(0, 100),
-                        cleanliness = (cat.cleanliness + 10).coerceIn(0, 100), energy = (cat.energy + 10).coerceIn(0, 100))
-                    else -> newCat.copy(hunger = (cat.hunger + 30).coerceIn(0, 100))
-                }
-            }
-            ShopCategory.TOY -> {
-                newCat = when (item.id) {
-                    12 -> newCat.copy(happiness = (cat.happiness + 15).coerceIn(0, 100), energy = (cat.energy - 5).coerceIn(0, 100))
-                    13 -> newCat.copy(happiness = (cat.happiness + 18).coerceIn(0, 100), energy = (cat.energy - 8).coerceIn(0, 100))
-                    14 -> newCat.copy(happiness = (cat.happiness + 5).coerceIn(0, 100), energy = (cat.energy + 5).coerceIn(0, 100), hunger = (cat.hunger + 5).coerceIn(0, 100))
-                    else -> newCat.copy(happiness = (cat.happiness + 10).coerceIn(0, 100), energy = (cat.energy - 5).coerceIn(0, 100))
-                }
-            }
-            ShopCategory.SKIN -> {
-                // 穿戴皮肤
-                newCat = newCat.copy(skinId = item.id, currentAnimation = "happy")
-            }
-            ShopCategory.FURNITURE -> {
-                // 家具暂时只增加心情
-                newCat = newCat.copy(happiness = (cat.happiness + 20).coerceIn(0, 100))
-            }
-        }
-        saveCat(newCat)
-        return newCat
-    }
-
-    /**
-     * 穿戴皮肤
-     */
-    fun wearSkin(skinId: Int, cat: Cat): Cat {
-        val newCat = cat.copy(skinId = skinId, currentAnimation = "happy")
-        saveCat(newCat)
-        return newCat
-    }
-
-    /**
-     * 重置动画状态（动画播放完毕后）
-     */
     fun resetAnimation(cat: Cat): Cat {
         val newCat = cat.copy(currentAnimation = "idle")
         saveCat(newCat)

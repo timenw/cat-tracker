@@ -5,7 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.timenw.cattracker.data.SoundManager
 import com.timenw.cattracker.data.model.CatAction
 import com.timenw.cattracker.data.model.CatBreed
@@ -25,7 +23,6 @@ import com.timenw.cattracker.ui.theme.CatOrange
 fun SettingsTab(
     settings: UserSettings,
     soundManager: SoundManager,
-    isPremium: Boolean = false,
     onSettingsChanged: (UserSettings) -> Unit
 ) {
     var showCatInfoDialog by remember { mutableStateOf(false) }
@@ -130,7 +127,7 @@ fun SettingsTab(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("撸了喵", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                        Text("版本 1.3.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("版本 1.4.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("一款专为爱猫人士设计的电子宠物猫养成软件。撸猫、喂食、玩耍、清洁，让你的小猫健康快乐成长！", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
@@ -165,24 +162,16 @@ fun SettingsTab(
                         )
                         ExposedDropdownMenu(expanded = showBreedDropdown, onDismissRequest = { showBreedDropdown = false }) {
                             CatBreed.entries.forEach { breed ->
-                                val locked = breed.isPremium && !isPremium
                                 DropdownMenuItem(
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text("${breed.emoji} ${breed.displayName}")
-                                            if (locked) {
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("🔒", fontSize = 12.sp)
-                                            }
                                         }
                                     },
                                     onClick = {
-                                        if (!locked) {
-                                            tempBreed = breed.name
-                                            showBreedDropdown = false
-                                        }
-                                    },
-                                    enabled = !locked
+                                        tempBreed = breed.name
+                                        showBreedDropdown = false
+                                    }
                                 )
                             }
                         }
