@@ -25,6 +25,7 @@ import com.timenw.cattracker.ui.theme.*
 @Composable
 fun ShopTab(
     cat: Cat,
+    isPremium: Boolean = false,
     onBuyItem: (ShopItem) -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf(ShopCategory.FOOD) }
@@ -154,27 +155,25 @@ fun ShopTab(
                             )
                         }
                         if (isOwned) {
-                            Text(
-                                "已拥有",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = CatGold,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text("已拥有", style = MaterialTheme.typography.labelMedium, color = CatGold, fontWeight = FontWeight.Bold)
                         } else {
+                            // 会员购买皮肤免费
+                            val isFreeForPremium = isPremium && item.category == ShopCategory.SKIN && !item.isDefault
+                            val canBuy = isFreeForPremium || canAfford
                             Button(
                                 onClick = { showPurchaseDialog = item },
-                                enabled = canAfford,
+                                enabled = canBuy,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = CatOrange,
+                                    containerColor = if (isFreeForPremium) CatGold else CatOrange,
                                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                                 ),
                                 shape = RoundedCornerShape(20.dp)
                             ) {
-                                Text(
-                                    "💰 ${item.price}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                if (isFreeForPremium) {
+                                    Text("👑 免费", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                } else {
+                                    Text("💰 ${item.price}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -196,7 +195,12 @@ fun ShopTab(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(item.description)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("价格: 💰 ${item.price}", fontWeight = FontWeight.Bold)
+                    val isFreeForPremium = isPremium && item.category == ShopCategory.SKIN && !item.isDefault
+                    if (isFreeForPremium) {
+                        Text("👑 会员免费", fontWeight = FontWeight.Bold, color = CatGold)
+                    } else {
+                        Text("价格: 💰 ${item.price}", fontWeight = FontWeight.Bold)
+                    }
                     Text("当前金币: 💰 ${cat.coins}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
@@ -204,11 +208,13 @@ fun ShopTab(
                 TextButton(
                     onClick = {
                         onBuyItem(item)
-                        purchaseMessage = "购买成功！${item.emoji} ${item.name}"
+                        purchaseMessage = if (isPremium && item.category == ShopCategory.SKIN && !item.isDefault)
+                            "👑 会员免费获得！${item.emoji} ${item.name}"
+                        else "购买成功！${item.emoji} ${item.name}"
                         showPurchaseDialog = null
                     }
                 ) {
-                    Text("购买")
+                    Text(if (isPremium && item.category == ShopCategory.SKIN && !item.isDefault) "免费领取" else "购买")
                 }
             },
             dismissButton = {

@@ -173,7 +173,13 @@ fun ShareCardContent(cat: Cat, socialManager: SocialManager) {
                 }
                 OutlinedButton(
                     onClick = {
-                        shareMessage = "卡片已保存到相册！"
+                        try {
+                            val path = socialManager.generateShareCard(cat)
+                            val success = socialManager.saveToGallery(path)
+                            shareMessage = if (success) "✅ 已保存到相册！" else "❌ 保存失败，请检查存储权限"
+                        } catch (e: Exception) {
+                            shareMessage = "❌ 保存失败: ${e.message}"
+                        }
                     },
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp)

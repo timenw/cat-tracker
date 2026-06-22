@@ -87,15 +87,15 @@ data class Cat(
 
 // ==================== 猫品种 ====================
 
-enum class CatBreed(val displayName: String, val emoji: String, val description: String) {
+enum class CatBreed(val displayName: String, val emoji: String, val description: String, val isPremium: Boolean = false) {
     DOMESTIC_SHORTHAIR("中华田园猫", "🐱", "活泼好动，适应力强"),
     PERSIAN("波斯猫", "😺", "温顺优雅，长毛飘逸"),
     BRITISH_SHORTHAIR("英短", "😸", "圆脸大眼，性格温和"),
-    RAGDOLL("布偶猫", "😻", "温柔粘人，像布偶一样"),
-    SCOTTISH_FOLD("折耳猫", "🐈", "可爱折耳，甜美乖巧"),
-    SIAMESE("暹罗猫", "😼", "聪明活泼，话特别多"),
-    MAINE_COON("缅因猫", "🦁", "体型巨大，温柔巨人"),
-    BENGAL("孟加拉猫", "🐆", "野性花纹，精力充沛")
+    RAGDOLL("布偶猫", "😻", "温柔粘人，像布偶一样", true),
+    SCOTTISH_FOLD("折耳猫", "🐈", "可爱折耳，甜美乖巧", true),
+    SIAMESE("暹罗猫", "😼", "聪明活泼，话特别多", true),
+    MAINE_COON("缅因猫", "🦁", "体型巨大，温柔巨人", true),
+    BENGAL("孟加拉猫", "🐆", "野性花纹，精力充沛", true)
 }
 
 // ==================== 心情枚举 ====================

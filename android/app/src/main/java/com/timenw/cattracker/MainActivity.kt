@@ -49,12 +49,14 @@ class MainActivity : ComponentActivity() {
         billingManager = BillingManager(
             context = applicationContext,
             onPurchaseSuccess = { sku ->
-                // 购买成功，更新广告状态
                 when (sku) {
                     BillingManager.SKU_REMOVE_ADS -> adManager.setAdsRemoved(true)
+                    BillingManager.SKU_COINS_100 -> {
+                        // 金币已通过 billingManager 处理
+                    }
                 }
             },
-            onPurchaseError = { /* 显示错误 */ }
+            onPurchaseError = { }
         )
 
         NotificationHelper.createNotificationChannel(this)
@@ -80,8 +82,7 @@ class MainActivity : ComponentActivity() {
 }
 
 sealed class Screen(
-    val route: String,
-    val label: String,
+    val route: String, val label: String,
     val selectedIcon: @Composable () -> Unit,
     val unselectedIcon: @Composable () -> Unit
 ) {
@@ -106,6 +107,10 @@ fun MainScreen(
     val context = LocalContext.current
     val today = remember { LocalDate.now() }
 
+    // 会员状态
+    val isPremium by billingManager.isPremium.collectAsState()
+    val adsRemoved by billingManager.adsRemoved.collectAsState()
+
     var cat by remember { mutableStateOf(repository.getCat()) }
     var settings by remember { mutableStateOf(repository.getSettings()) }
     var todaySummary by remember { mutableStateOf(repository.getDailySummary(today)) }
@@ -122,6 +127,9 @@ fun MainScreen(
 
     // 应用自然衰减
     LaunchedEffect(Unit) { cat = repository.applyNaturalDecay(cat) }
+
+    // 会员双倍金币
+    val coinMultiplier = if (isPremium) 2 else 1
 
     fun refreshData() {
         cat = repository.getCat()
@@ -143,17 +151,14 @@ fun MainScreen(
                     NavigationBarItem(
                         icon = {
                             if (currentDestination?.hierarchy?.any { it.route == screen.route } == true)
-                                screen.selectedIcon()
-                            else
-                                screen.unselectedIcon()
+                                screen.selectedIcon() else screen.unselectedIcon()
                         },
                         label = { Text(screen.label) },
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                                launchSingleTop = true; restoreState = true
                             }
                         }
                     )
@@ -161,101 +166,83 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
+        NavHost(navController = navController, startDestination = Screen.Home.route, modifier = Modifier.padding(innerPadding)) {
             composable(Screen.Home.route) {
                 CatHomeTab(
-                    cat = cat,
-                    todaySummary = todaySummary,
-                    recentRecords = recentRecords,
-                    settings = settings,
+                    cat = cat, todaySummary = todaySummary, recentRecords = recentRecords,
+                    settings = settings, isPremium = isPremium,
                     onAction = { action ->
                         val oldIntimacy = cat.intimacy
                         val oldHappiness = cat.happiness
                         cat = repository.performAction(action, cat)
-                        // 播放音效
-                        soundManager.playActionSound(action)
-                        // 尝试展示插屏广告
-                        (context as? MainActivity)?.let { activity ->
-                            adManager.tryShowInterstitial(activity)
+                        // 会员双倍金币
+                        if (isPremium && action != CatAction.SLEEP) {
+                            val bonusCoins = when (action) {
+                                CatAction.PET_HEAD, CatAction.SCRATCH_CHIN, CatAction.RUB_BELLY -> 2
+                                CatAction.FEED_FOOD, CatAction.FEED_SNACK, CatAction.FEED_CAN -> 3
+                                CatAction.PLAY_CAT_TEASE, CatAction.PLAY_BALL, CatAction.PLAY_LASER -> 3
+                                CatAction.CLEAN_BATH, CatAction.CLEAN_BRUSH -> 5
+                                else -> 0
+                            }
+                            cat = cat.copy(coins = cat.coins + bonusCoins)
+                            repository.saveCat(cat)
                         }
-                        // 记录
+                        soundManager.playActionSound(action)
+                        (context as? MainActivity)?.let { activity -> adManager.tryShowInterstitial(activity) }
                         val record = CatRecord(
-                            actionType = action.name,
-                            timestamp = System.currentTimeMillis(),
-                            date = today.toString(),
-                            intimacyBefore = oldIntimacy,
-                            intimacyAfter = cat.intimacy,
-                            happinessBefore = oldHappiness,
-                            happinessAfter = cat.happiness
+                            actionType = action.name, timestamp = System.currentTimeMillis(),
+                            date = today.toString(), intimacyBefore = oldIntimacy, intimacyAfter = cat.intimacy,
+                            happinessBefore = oldHappiness, happinessAfter = cat.happiness
                         )
                         repository.addRecord(record)
                         refreshData()
                     },
-                    onSettingsChanged = { newSettings ->
-                        repository.saveSettings(newSettings)
-                        settings = newSettings
-                    }
+                    onSettingsChanged = { newSettings -> repository.saveSettings(newSettings); settings = newSettings }
                 )
             }
             composable(Screen.Stats.route) {
-                StatsTab(
-                    cat = cat,
-                    weeklyData = weeklyData,
-                    monthlyData = monthlyData,
-                    unlockedAchievements = unlockedAchievements,
-                    lockedAchievements = lockedAchievements,
-                    consecutiveDays = consecutiveDays
-                )
+                StatsTab(cat = cat, weeklyData = weeklyData, monthlyData = monthlyData,
+                    unlockedAchievements = unlockedAchievements, lockedAchievements = lockedAchievements,
+                    consecutiveDays = consecutiveDays)
             }
             composable(Screen.Shop.route) {
-                ShopTab(
-                    cat = cat,
+                ShopTab(cat = cat, isPremium = isPremium,
                     onBuyItem = { item ->
                         cat = repository.buyItem(item, cat)
+                        // 会员购买皮肤免费
+                        if (isPremium && item.category == ShopCategory.SKIN && !item.isDefault) {
+                            cat = cat.copy(coins = cat.coins + item.price) // 退还金币
+                            repository.saveCat(cat)
+                        }
                         soundManager.playPurchaseSound()
                         refreshData()
-                    }
-                )
+                    })
             }
             composable(Screen.Social.route) {
-                SocialTab(
-                    cat = cat,
-                    socialManager = socialManager,
+                SocialTab(cat = cat, socialManager = socialManager,
                     onShowRewardedAd = {
-                        // 看广告得金币
-                        cat = cat.copy(coins = cat.coins + 50)
-                        repository.saveCat(cat)
-                        refreshData()
-                    }
-                )
+                        val reward = if (isPremium) 100 else 50
+                        cat = cat.copy(coins = cat.coins + reward)
+                        repository.saveCat(cat); refreshData()
+                    })
             }
             composable(Screen.Premium.route) {
-                PremiumTab(
-                    billingManager = billingManager,
+                PremiumTab(billingManager = billingManager, isPremium = isPremium, adsRemoved = adsRemoved,
                     onShowRewardedAd = {
-                        cat = cat.copy(coins = cat.coins + 50)
-                        repository.saveCat(cat)
-                        refreshData()
-                    }
-                )
+                        val reward = if (isPremium) 100 else 50
+                        cat = cat.copy(coins = cat.coins + reward)
+                        repository.saveCat(cat); refreshData()
+                    })
             }
             composable(Screen.Settings.route) {
-                SettingsTab(
-                    settings = settings,
-                    soundManager = soundManager,
+                SettingsTab(settings = settings, soundManager = soundManager, isPremium = isPremium,
                     onSettingsChanged = { newSettings ->
-                        repository.saveSettings(newSettings)
-                        settings = newSettings
+                        repository.saveSettings(newSettings); settings = newSettings
                         if (newSettings.catName != cat.name) {
                             cat = cat.copy(name = newSettings.catName)
                             repository.saveCat(cat)
                         }
-                    }
-                )
+                    })
             }
         }
     }

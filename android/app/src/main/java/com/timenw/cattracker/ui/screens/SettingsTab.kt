@@ -24,6 +24,7 @@ import com.timenw.cattracker.ui.theme.CatOrange
 fun SettingsTab(
     settings: UserSettings,
     soundManager: SoundManager,
+    isPremium: Boolean = false,
     onSettingsChanged: (UserSettings) -> Unit
 ) {
     var showCatInfoDialog by remember { mutableStateOf(false) }
@@ -151,7 +152,7 @@ fun SettingsTab(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("撸了喵", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                        Text("版本 1.1.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("版本 1.2.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("一款专为爱猫人士设计的电子宠物猫养成软件。撸猫、喂食、玩耍、清洁，让你的小猫健康快乐成长！", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
@@ -186,7 +187,25 @@ fun SettingsTab(
                         )
                         ExposedDropdownMenu(expanded = showBreedDropdown, onDismissRequest = { showBreedDropdown = false }) {
                             CatBreed.entries.forEach { breed ->
-                                DropdownMenuItem(text = { Text("${breed.emoji} ${breed.displayName}") }, onClick = { tempBreed = breed.name; showBreedDropdown = false })
+                                val locked = breed.isPremium && !isPremium
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("${breed.emoji} ${breed.displayName}")
+                                            if (locked) {
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("🔒", fontSize = 12.sp)
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        if (!locked) {
+                                            tempBreed = breed.name
+                                            showBreedDropdown = false
+                                        }
+                                    },
+                                    enabled = !locked
+                                )
                             }
                         }
                     }

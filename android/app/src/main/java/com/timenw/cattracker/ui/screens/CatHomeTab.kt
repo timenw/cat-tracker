@@ -37,6 +37,7 @@ fun CatHomeTab(
     todaySummary: DailyCatSummary,
     recentRecords: List<CatRecord>,
     settings: UserSettings,
+    isPremium: Boolean = false,
     onAction: (CatAction) -> Unit,
     onSettingsChanged: (UserSettings) -> Unit
 ) {
@@ -58,6 +59,10 @@ fun CatHomeTab(
                     Text("🐱", fontSize = 24.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("撸了喵", fontWeight = FontWeight.Bold)
+                    if (isPremium) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("👑", fontSize = 16.sp)
+                    }
                 }
             },
             actions = {

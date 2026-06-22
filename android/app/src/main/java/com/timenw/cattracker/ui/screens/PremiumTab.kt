@@ -1,6 +1,7 @@
 package com.timenw.cattracker.ui.screens
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,11 +23,11 @@ import com.timenw.cattracker.ui.theme.*
 @Composable
 fun PremiumTab(
     billingManager: BillingManager,
+    isPremium: Boolean,
+    adsRemoved: Boolean,
     onShowRewardedAd: () -> Unit
 ) {
     val context = LocalContext.current
-    val isPremium by billingManager.isPremium.collectAsState()
-    val adsRemoved by billingManager.adsRemoved.collectAsState()
     var purchaseMessage by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -67,8 +68,7 @@ fun PremiumTab(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            if (isPremium) "感谢支持！享受完整体验吧"
-                            else "升级会员，解锁全部功能",
+                            if (isPremium) "感谢支持！享受完整体验吧" else "升级会员，解锁全部功能",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -106,11 +106,15 @@ fun PremiumTab(
                 PurchaseCard(
                     title = "移除广告",
                     description = "一次性购买，永久移除广告",
-                    price = billingManager.getSkuPrice(BillingManager.SKU_REMOVE_ADS),
+                    price = "¥6.99",
                     emoji = "🚫",
                     purchased = adsRemoved,
                     onClick = {
-                        billingManager.purchase(context as Activity, BillingManager.SKU_REMOVE_ADS)
+                        try {
+                            billingManager.purchase(context as Activity, BillingManager.SKU_REMOVE_ADS)
+                        } catch (e: Exception) {
+                            purchaseMessage = "购买失败: ${e.message}"
+                        }
                     }
                 )
             }
@@ -120,11 +124,15 @@ fun PremiumTab(
                 PurchaseCard(
                     title = "月度会员",
                     description = "享受全部会员特权",
-                    price = billingManager.getSkuPrice(BillingManager.SKU_PREMIUM_MONTHLY),
+                    price = "¥6/月",
                     emoji = "👑",
                     purchased = isPremium,
                     onClick = {
-                        billingManager.purchase(context as Activity, BillingManager.SKU_PREMIUM_MONTHLY)
+                        try {
+                            billingManager.purchase(context as Activity, BillingManager.SKU_PREMIUM_MONTHLY)
+                        } catch (e: Exception) {
+                            purchaseMessage = "购买失败: ${e.message}"
+                        }
                     },
                     isHighlighted = true
                 )
@@ -136,28 +144,27 @@ fun PremiumTab(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CoinPackCard(
-                        name = "小包",
-                        coins = "100",
-                        price = billingManager.getSkuPrice(BillingManager.SKU_COINS_100),
-                        emoji = "🪙",
-                        onClick = { billingManager.purchase(context as Activity, BillingManager.SKU_COINS_100) },
+                        name = "小包", coins = "100", price = "¥1.99", emoji = "🪙",
+                        onClick = {
+                            try { billingManager.purchase(context as Activity, BillingManager.SKU_COINS_100) }
+                            catch (e: Exception) { purchaseMessage = "购买失败" }
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     CoinPackCard(
-                        name = "中包",
-                        coins = "500",
-                        price = billingManager.getSkuPrice(BillingManager.SKU_COINS_500),
-                        emoji = "💰",
-                        onClick = { billingManager.purchase(context as Activity, BillingManager.SKU_COINS_500) },
-                        modifier = Modifier.weight(1f),
-                        isHighlighted = true
+                        name = "中包", coins = "500", price = "¥6.99", emoji = "💰",
+                        onClick = {
+                            try { billingManager.purchase(context as Activity, BillingManager.SKU_COINS_500) }
+                            catch (e: Exception) { purchaseMessage = "购买失败" }
+                        },
+                        modifier = Modifier.weight(1f), isHighlighted = true
                     )
                     CoinPackCard(
-                        name = "大包",
-                        coins = "1000",
-                        price = billingManager.getSkuPrice(BillingManager.SKU_COINS_1000),
-                        emoji = "💎",
-                        onClick = { billingManager.purchase(context as Activity, BillingManager.SKU_COINS_1000) },
+                        name = "大包", coins = "1000", price = "¥12.99", emoji = "💎",
+                        onClick = {
+                            try { billingManager.purchase(context as Activity, BillingManager.SKU_COINS_1000) }
+                            catch (e: Exception) { purchaseMessage = "购买失败" }
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -183,9 +190,7 @@ fun PremiumTab(
                             onClick = onShowRewardedAd,
                             colors = ButtonDefaults.buttonColors(containerColor = CatOrange),
                             shape = RoundedCornerShape(20.dp)
-                        ) {
-                            Text("观看", fontWeight = FontWeight.Bold)
-                        }
+                        ) { Text("观看", fontWeight = FontWeight.Bold) }
                     }
                 }
             }
@@ -219,10 +224,7 @@ fun PremiumTab(
 
 @Composable
 fun PremiumFeature(emoji: String, title: String, description: String, unlocked: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(emoji, fontSize = 24.sp)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -239,13 +241,8 @@ fun PremiumFeature(emoji: String, title: String, description: String, unlocked: 
 
 @Composable
 fun PurchaseCard(
-    title: String,
-    description: String,
-    price: String,
-    emoji: String,
-    purchased: Boolean,
-    onClick: () -> Unit,
-    isHighlighted: Boolean = false
+    title: String, description: String, price: String, emoji: String,
+    purchased: Boolean, onClick: () -> Unit, isHighlighted: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -254,10 +251,7 @@ fun PurchaseCard(
             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(emoji, fontSize = 32.sp)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -269,13 +263,9 @@ fun PurchaseCard(
             } else {
                 Button(
                     onClick = onClick,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isHighlighted) CatGold else CatOrange
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isHighlighted) CatGold else CatOrange),
                     shape = RoundedCornerShape(20.dp)
-                ) {
-                    Text(price, fontWeight = FontWeight.Bold)
-                }
+                ) { Text(price, fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -283,13 +273,8 @@ fun PurchaseCard(
 
 @Composable
 fun CoinPackCard(
-    name: String,
-    coins: String,
-    price: String,
-    emoji: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isHighlighted: Boolean = false
+    name: String, coins: String, price: String, emoji: String,
+    onClick: () -> Unit, modifier: Modifier = Modifier, isHighlighted: Boolean = false
 ) {
     Card(
         modifier = modifier,
