@@ -90,6 +90,7 @@ sealed class Screen(
     object Stats : Screen("stats", "统计", { Icon(Icons.Filled.BarChart, contentDescription = null) }, { Icon(Icons.Outlined.BarChart, contentDescription = null) })
     object Shop : Screen("shop", "商店", { Icon(Icons.Filled.ShoppingCart, contentDescription = null) }, { Icon(Icons.Outlined.ShoppingCart, contentDescription = null) })
     object Social : Screen("social", "社交", { Icon(Icons.Filled.Share, contentDescription = null) }, { Icon(Icons.Outlined.Share, contentDescription = null) })
+    object Inventory : Screen("inventory", "仓库", { Icon(Icons.Filled.AllInbox, contentDescription = null) }, { Icon(Icons.Outlined.AllInbox, contentDescription = null) })
     object Premium : Screen("premium", "会员", { Icon(Icons.Filled.WorkspacePremium, contentDescription = null) }, { Icon(Icons.Outlined.WorkspacePremium, contentDescription = null) })
     object Settings : Screen("settings", "设置", { Icon(Icons.Filled.Settings, contentDescription = null) }, { Icon(Icons.Outlined.Settings, contentDescription = null) })
 }
@@ -103,7 +104,7 @@ fun MainScreen(
     socialManager: SocialManager
 ) {
     val navController = rememberNavController()
-    val screens = listOf(Screen.Home, Screen.Stats, Screen.Shop, Screen.Social, Screen.Premium, Screen.Settings)
+    val screens = listOf(Screen.Home, Screen.Stats, Screen.Shop, Screen.Inventory, Screen.Social, Screen.Premium, Screen.Settings)
     val context = LocalContext.current
     val today = remember { LocalDate.now() }
 
@@ -128,8 +129,7 @@ fun MainScreen(
     // 应用自然衰减
     LaunchedEffect(Unit) { cat = repository.applyNaturalDecay(cat) }
 
-    // 会员双倍金币
-    val coinMultiplier = if (isPremium) 2 else 1
+    // 会员双倍金币在 CatHomeTab 的 onAction 中处理
 
     fun refreshData() {
         cat = repository.getCat()
@@ -208,13 +208,25 @@ fun MainScreen(
             composable(Screen.Shop.route) {
                 ShopTab(cat = cat, isPremium = isPremium,
                     onBuyItem = { item ->
-                        cat = repository.buyItem(item, cat)
+                        cat = repository.buyItem(item, cat, isPremium)
                         // 会员购买皮肤免费
                         if (isPremium && item.category == ShopCategory.SKIN && !item.isDefault) {
                             cat = cat.copy(coins = cat.coins + item.price) // 退还金币
                             repository.saveCat(cat)
                         }
                         soundManager.playPurchaseSound()
+                        refreshData()
+                    })
+            }
+            composable(Screen.Inventory.route) {
+                InventoryTab(cat = cat,
+                    onUseItem = { item ->
+                        cat = repository.useItem(item, cat)
+                        soundManager.playPurchaseSound()
+                        refreshData()
+                    },
+                    onWearSkin = { skinId ->
+                        cat = repository.wearSkin(skinId, cat)
                         refreshData()
                     })
             }

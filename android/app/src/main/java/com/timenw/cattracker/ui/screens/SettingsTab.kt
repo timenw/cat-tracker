@@ -92,8 +92,8 @@ fun SettingsTab(
                 }
             }
 
-            // 音效与震动
-            item { Text("音效与震动", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+            // 音效设置
+            item { Text("音效设置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -103,44 +103,21 @@ fun SettingsTab(
                         }
                         if (settings.soundEnabled) {
                             Spacer(modifier = Modifier.height(8.dp))
+                            Text("点击测试不同动作的猫叫声：", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = { soundManager.playActionSound(CatAction.PET_HEAD) },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("🔊 摸头音效") }
-                                OutlinedButton(
-                                    onClick = { soundManager.playActionSound(CatAction.FEED_FOOD) },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("🔊 喂食音效") }
+                                OutlinedButton(onClick = { soundManager.playActionSound(CatAction.PET_HEAD) }, modifier = Modifier.weight(1f)) { Text("🤚 摸头") }
+                                OutlinedButton(onClick = { soundManager.playActionSound(CatAction.FEED_FOOD) }, modifier = Modifier.weight(1f)) { Text("🍖 喂食") }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = { soundManager.playActionSound(CatAction.PLAY_CAT_TEASE) },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("🔊 玩耍音效") }
-                                OutlinedButton(
-                                    onClick = { soundManager.playAchievementSound() },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("🔊 成就音效") }
+                                OutlinedButton(onClick = { soundManager.playActionSound(CatAction.PLAY_CAT_TEASE) }, modifier = Modifier.weight(1f)) { Text("🪶 玩耍") }
+                                OutlinedButton(onClick = { soundManager.playActionSound(CatAction.SLEEP) }, modifier = Modifier.weight(1f)) { Text("😴 睡觉") }
                             }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp)); HorizontalDivider(); Spacer(modifier = Modifier.height(12.dp))
-                        SwitchRow("震动", if (settings.vibrationEnabled) "已开启" else "已关闭", settings.vibrationEnabled) {
-                            onSettingsChanged(settings.copy(vibrationEnabled = it))
-                            soundManager.setVibrationEnabled(it)
-                        }
-                        if (settings.vibrationEnabled) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = { soundManager.playActionSound(CatAction.PET_HEAD) },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("📳 短震动") }
-                                OutlinedButton(
-                                    onClick = { soundManager.playActionSound(CatAction.PLAY_CAT_TEASE) },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("📳 长震动") }
+                                OutlinedButton(onClick = { soundManager.playActionSound(CatAction.CLEAN_BATH) }, modifier = Modifier.weight(1f)) { Text("🛁 洗澡") }
+                                OutlinedButton(onClick = { soundManager.playAchievementSound() }, modifier = Modifier.weight(1f)) { Text("🏆 成就") }
                             }
                         }
                     }
@@ -153,7 +130,7 @@ fun SettingsTab(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("撸了喵", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                        Text("版本 1.2.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("版本 1.3.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("一款专为爱猫人士设计的电子宠物猫养成软件。撸猫、喂食、玩耍、清洁，让你的小猫健康快乐成长！", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))

@@ -11,12 +11,12 @@ data class Cat(
     val birthday: String = java.time.LocalDate.now().toString(),
     val level: Int = 1,
     val exp: Int = 0,
-    val intimacy: Int = 0,        // 亲密度
-    val hunger: Int = 80,         // 饱食度 0-100
-    val happiness: Int = 70,      // 心情 0-100
-    val weight: Float = 4.5f,     // 体重 kg
-    val cleanliness: Int = 80,    // 清洁度 0-100
-    val energy: Int = 80,         // 精力 0-100
+    val intimacy: Int = 0,
+    val hunger: Int = 80,
+    val happiness: Int = 70,
+    val weight: Float = 4.5f,
+    val cleanliness: Int = 80,
+    val energy: Int = 80,
     val lastInteractionTime: Long = System.currentTimeMillis(),
     val lastFeedTime: Long = System.currentTimeMillis(),
     val lastPlayTime: Long = System.currentTimeMillis(),
@@ -25,11 +25,15 @@ data class Cat(
     val totalFeeds: Int = 0,
     val totalPlays: Int = 0,
     val totalCleans: Int = 0,
-    val coins: Int = 100,         // 金币
-    val skinId: Int = 0,          // 当前皮肤
-    val unlockedSkins: String = "0",  // 已解锁皮肤ID逗号分隔
-    val unlockedToys: String = "0",   // 已解锁玩具ID逗号分隔
-    val unlockedFoods: String = "0"   // 已解锁食物ID逗号分隔
+    val coins: Int = 100,
+    val skinId: Int = 0,          // 当前穿戴的皮肤ID
+    val unlockedSkins: String = "0",
+    val unlockedToys: String = "0",
+    val unlockedFoods: String = "0",
+    // 仓库：物品ID -> 数量
+    val inventory: String = "",
+    // 当前动画状态
+    val currentAnimation: String = "idle"
 ) {
     val levelTitle: String
         get() = when (level) {
@@ -83,6 +87,28 @@ data class Cat(
     val isDirty: Boolean get() = cleanliness < 30
     val isTired: Boolean get() = energy < 30
     val isOverweight: Boolean get() = weight > 7.0f
+
+    // 获取皮肤主色调（用于猫窝显示）
+    val skinColor: Long
+        get() = when (skinId) {
+            21 -> 0xFFFF8A65 // 橘猫 - 橙色
+            22 -> 0xFF424242 // 黑猫 - 深灰
+            23 -> 0xFFF5F5F5 // 白猫 - 白色
+            24 -> 0xFFFFAB91 // 三花 - 浅橙
+            25 -> 0xFF7C4DFF // 赛博 - 紫色
+            else -> 0xFFFFB74D // 默认 - 金色
+        }
+
+    // 获取皮肤名称
+    val skinName: String
+        get() = when (skinId) {
+            21 -> "橘猫"
+            22 -> "黑猫"
+            23 -> "白猫"
+            24 -> "三花猫"
+            25 -> "赛博猫"
+            else -> "默认"
+        }
 }
 
 // ==================== 猫品种 ====================
@@ -215,8 +241,7 @@ data class UserSettings(
     val catName: String = "小咪",
     val catBreed: String = CatBreed.DOMESTIC_SHORTHAIR.name,
     val catBirthday: String = java.time.LocalDate.now().toString(),
-    val soundEnabled: Boolean = true,
-    val vibrationEnabled: Boolean = true
+    val soundEnabled: Boolean = true
 )
 
 // ==================== 预定义商店物品 ====================
@@ -273,3 +298,53 @@ val ALL_ACHIEVEMENTS = listOf(
     Achievement(19, "富甲一方", "💰", "累计获得500金币", 500, AchievementType.COINS_EARNED, 100),
     Achievement(20, "猫界首富", "💎", "累计获得2000金币", 2000, AchievementType.COINS_EARNED, 500)
 )
+
+// ==================== 仓库工具函数 ====================
+
+/**
+ * 解析仓库字符串为 Map
+ */
+fun parseInventory(inventory: String): Map<Int, Int> {
+    if (inventory.isBlank()) return emptyMap()
+    return inventory.split(",").mapNotNull { entry ->
+        val parts = entry.split(":")
+        if (parts.size == 2) {
+            val id = parts[0].toIntOrNull()
+            val count = parts[1].toIntOrNull()
+            if (id != null && count != null) id to count else null
+        } else null
+    }.toMap()
+}
+
+/**
+ * 将仓库 Map 序列化为字符串
+ */
+fun serializeInventory(map: Map<Int, Int>): String {
+    return map.entries.joinToString(",") { "${it.key}:${it.value}" }
+}
+
+/**
+ * 添加物品到仓库
+ */
+fun addToInventory(inventory: String, itemId: Int, count: Int = 1): String {
+    val map = parseInventory(inventory).toMutableMap()
+    map[itemId] = (map[itemId] ?: 0) + count
+    return serializeInventory(map)
+}
+
+/**
+ * 从仓库移除物品
+ */
+fun removeFromInventory(inventory: String, itemId: Int, count: Int = 1): String {
+    val map = parseInventory(inventory).toMutableMap()
+    val current = map[itemId] ?: return inventory
+    if (current <= count) map.remove(itemId) else map[itemId] = current - count
+    return serializeInventory(map)
+}
+
+/**
+ * 获取仓库中物品数量
+ */
+fun getItemCount(inventory: String, itemId: Int): Int {
+    return parseInventory(inventory)[itemId] ?: 0
+}
